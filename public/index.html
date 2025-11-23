@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>CSGold Wager Leaderboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="leaderboard-wrapper">
+      <header class="lb-header">
+        <div class="lb-title-group">
+          <div class="lb-title">
+            CSGold bubbi69 leaderboard
+            <span class="badge" id="period-badge">Current</span>
+          </div>
+          <div class="lb-subtitle" id="lb-subtitle">
+            Top 10 affiliates by total wager volume. 1st: 100 • 2nd: 50 • 3rd:
+            30.
+          </div>
+          <div class="lb-switch">
+            <button
+              type="button"
+              class="switch-btn active"
+              data-period="current"
+              id="btn-current"
+            >
+              This period
+            </button>
+            <button
+              type="button"
+              class="switch-btn"
+              data-period="previous"
+              id="btn-previous"
+            >
+              Last period
+            </button>
+          </div>
+        </div>
+        <div class="lb-meta">
+          <span id="date-range-text">Loading date range...</span>
+          <span id="countdown-text" class="countdown-text">
+            <!-- countdown gets filled here -->
+          </span>
+          <span class="pill">
+            <span class="status-dot"></span>
+            Live tracking
+          </span>
+        </div>
+      </header>
+
+      <table class="lb-table">
+        <thead>
+          <tr>
+            <th class="col-rank">#</th>
+            <th>Player</th>
+            <th>Total Wagered</th>
+            <th>Prize</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboard-body"></tbody>
+      </table>
+
+      <footer class="lb-footer">
+        <div id="status" class="status-text">Loading leaderboard...</div>
+        <button class="lb-refresh" id="refresh-btn" type="button">
+          <span class="icon">⟳</span>
+          <span>Refresh</span>
+        </button>
+      </footer>
+    </div>
+
+    <script src="./leaderboard.js"></script>
+  </body>
+</html>
+
