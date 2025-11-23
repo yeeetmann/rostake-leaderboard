@@ -16,8 +16,15 @@ if (!CSGOLD_API_KEY) {
 // length of one leaderboard period in days
 const LEADERBOARD_DURATION_DAYS = 14;
 
-// 🕒 anchor: moment the server starts
-const BASE_START_MS = Date.now();
+// 🕒 anchor: fixed start date for all 14-day cycles
+// Format example: "2025-11-23T00:00:00Z"
+const LB_START_ISO = process.env.LB_START_ISO || "2025-11-23T00:00:00Z";
+const BASE_START_MS = Date.parse(LB_START_ISO);
+
+if (Number.isNaN(BASE_START_MS)) {
+  throw new Error("Invalid LB_START_ISO date format");
+}
+
 
 app.use(cors());
 app.use(express.json());
