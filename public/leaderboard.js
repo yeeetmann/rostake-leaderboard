@@ -1,11 +1,10 @@
-const PRIZES = {
-  1: 100,
-  2: 60,
-  3: 40,
-};
+// Change payouts here
+const PRIZES = { 1: 100, 2: 30, 3: 20 };
 
-let currentPeriod = "current"; // "current" or "previous"
+let currentPeriod = "current";
 let countdownInterval = null;
+
+const el = (id) => document.getElementById(id);
 
 function formatDateRangeText(afterMs, beforeMs) {
   const opts = { day: "2-digit", month: "short", year: "numeric" };
@@ -16,108 +15,30 @@ function formatDateRangeText(afterMs, beforeMs) {
 
 function formatAmount(value) {
   const num = Number(value || 0);
-  if (isNaN(num)) return "0";
-  return num.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  if (!Number.isFinite(num)) return "0.00";
+  return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function getPrizeForRank(rank) {
+function prizeFor(rank) {
   return PRIZES[rank] || 0;
 }
 
-function createRow(rank, entry) {
-  const tr = document.createElement("tr");
-
-  const prize = getPrizeForRank(rank);
-  const safeUsername = entry.isAnon ? "Anonymous" : entry.username || "Unknown";
-  const avatarSrc = entry.avatar || "";
-
-  tr.innerHTML = `
-    <td class="col-rank">
-      <div class="rank-pill rank-${rank <= 3 ? rank : ""}">${rank}</div>
-    </td>
-    <td>
-      <div class="avatar-name">
-        <div class="avatar">
-          ${
-            avatarSrc
-              ? `<img src="${avatarSrc}" alt="${safeUsername}'s avatar" />`
-              : ""
-          }
-        </div>
-        <div class="username-block">
-          <span class="username">${safeUsername}</span>
-          ${entry.isAnon ? `<span class="anon-tag">Anon</span>` : ""}
-        </div>
-      </div>
-    </td>
-    <td class="amount">${formatAmount(entry.totalAmount)}</td>
-    <td>
-      ${
-        prize > 0
-          ? `<span class="prize-badge">
-               <span class="icon">🏆</span>
-               <span>${prize}</span>
-             </span>`
-          : `<span class="no-prize">–</span>`
-      }
-    </td>
-  `;
-
-  return tr;
-}
-
-function updatePeriodUI(period, meta) {
-  currentPeriod = period;
-
-  const badge = document.getElementById("period-badge");
-  const subtitle = document.getElementById("lb-subtitle");
-  const btnCurrent = document.getElementById("btn-current");
-  const btnPrevious = document.getElementById("btn-previous");
-  const countdownEl = document.getElementById("countdown-text");
-
-  if (period === "current") {
-    badge.textContent = "Current";
-    subtitle.textContent =
-      "Top 10 affiliates by total wager volume. 1st: 100 • 2nd: 60 • 3rd: 40.";
-    btnCurrent.classList.add("active");
-    btnPrevious.classList.remove("active");
-    if (countdownEl) countdownEl.style.opacity = "1";
-  } else {
-    badge.textContent = "Last period";
-    subtitle.textContent =
-      "Results from the previous leaderboard period. No longer updating.";
-    btnPrevious.classList.add("active");
-    btnCurrent.classList.remove("active");
-    if (countdownEl) {
-      countdownEl.textContent = "This period has ended.";
-      countdownEl.style.opacity = "0.85";
-    }
-  }
+function setActiveButtons(period) {
+  el("btn-current").classList.toggle("active", period === "current");
+  el("btn-previous").classList.toggle("active", period === "previous");
+  el("period-badge").textContent = period === "current" ? "Current" : "Last";
 }
 
 function startCountdown(targetMs) {
-  const el = document.getElementById("countdown-text");
-  if (!el) return;
+  if (countdownInterval) clearInterval(countdownInterval);
 
-  if (countdownInterval) {
-    clearInterval(countdownInterval);
-    countdownInterval = null;
-  }
-
-  function tick() {
-    const now = Date.now();
-    let diff = targetMs - now;
-
+  const tick = () => {
+    const diff = targetMs - Date.now();
     if (diff <= 0) {
-      el.textContent = "Resetting leaderboard...";
+      el("countdown-text").textContent = "Resetting leaderboard…";
       clearInterval(countdownInterval);
       countdownInterval = null;
-
-      // when time is up, automatically load the new current period
-      fetchLeaderboard("current");
+      loadLeaderboard("current"); // auto-start next cycle
       return;
     }
 
@@ -127,93 +48,89 @@ function startCountdown(targetMs) {
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
 
-    const timeStr = `${days}d ${String(hours).padStart(2, "0")}:${String(
-      minutes
-    ).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-
-    el.textContent = `Time left this period: ${timeStr}`;
-  }
+    el("countdown-text").textContent =
+      `Time left: ${days}d ${String(hours).padStart(2,"0")}:${String(minutes).padStart(2,"0")}:${String(seconds).padStart(2,"0")}`;
+  };
 
   tick();
   countdownInterval = setInterval(tick, 1000);
 }
 
-async function fetchLeaderboard(period = "current") {
-  const statusEl = document.getElementById("status");
-  const tableBody = document.getElementById("leaderboard-body");
-  const dateRangeText = document.getElementById("date-range-text");
+function renderRows(data) {
+  const tbody = el("leaderboard-body");
+  tbody.innerHTML = "";
 
-  tableBody.innerHTML = "";
-  statusEl.textContent = "Loading leaderboard...";
-  statusEl.classList.remove("error");
-  statusEl.classList.add("loading");
+  data.forEach((entry, idx) => {
+    const rank = idx + 1;
+    const prize = prizeFor(rank);
+
+    const safeUsername = entry.isAnon ? "Anonymous" : (entry.username || "Unknown");
+    const avatarSrc = entry.avatar || "";
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="col-rank">
+        <div class="rank-pill ${rank <= 3 ? `rank-${rank}` : ""}">${rank}</div>
+      </td>
+      <td>
+        <div class="avatar-name">
+          <div class="avatar">
+            ${avatarSrc ? `<img src="${avatarSrc}" alt="${safeUsername}" />` : ""}
+          </div>
+          <div>
+            <div class="username">${safeUsername}</div>
+            ${entry.isAnon ? `<div class="anon-tag">Anon</div>` : ""}
+          </div>
+        </div>
+      </td>
+      <td class="amount">${formatAmount(entry.totalAmount ?? entry.amount ?? entry.total ?? entry.wagered)}</td>
+      <td>
+        ${prize ? `<span class="prize-badge">🏆 ${prize}</span>` : "—"}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function loadLeaderboard(period) {
+  currentPeriod = period;
+  setActiveButtons(period);
+
+  el("status").textContent = "Loading…";
 
   try {
     const res = await fetch(`/api/leaderboard?period=${period}`);
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
-
     const json = await res.json();
+
     if (!json.success) {
-      throw new Error(json.message || "API success:false");
-    }
-
-    const { data, meta } = json;
-
-    updatePeriodUI(period, meta);
-
-    if (meta?.after && meta?.before) {
-      dateRangeText.textContent = formatDateRangeText(meta.after, meta.before);
-    }
-
-    // countdown only for current period
-    if (period === "current" && meta?.nextResetAt) {
-      startCountdown(meta.nextResetAt);
-    } else {
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
-        countdownInterval = null;
-      }
-    }
-
-    if (!data || data.length === 0) {
-      statusEl.textContent = "No wagers found for this period.";
-      statusEl.classList.remove("loading");
+      el("status").textContent = "Failed to load leaderboard.";
+      console.error(json);
       return;
     }
 
-    data.forEach((entry, idx) => {
-      const rank = idx + 1;
-      const row = createRow(rank, entry);
-      tableBody.appendChild(row);
-    });
+    el("date-range-text").textContent = formatDateRangeText(json.meta.after, json.meta.before);
 
-    statusEl.textContent = `Updated just now • Showing top ${data.length} players`;
-    statusEl.classList.remove("loading");
+    if (period === "current" && json.meta.nextResetAt) {
+      startCountdown(json.meta.nextResetAt);
+    } else {
+      if (countdownInterval) clearInterval(countdownInterval);
+      el("countdown-text").textContent = "Ended.";
+    }
+
+    renderRows(json.data || []);
+    el("status").textContent = `Updated • showing top ${json.data.length}`;
   } catch (err) {
     console.error(err);
-    statusEl.textContent =
-      "Failed to load leaderboard. Try again or check the server.";
-    statusEl.classList.remove("loading");
-    statusEl.classList.add("error");
+    el("status").textContent = "Error loading leaderboard.";
   }
 }
 
-// Buttons
-document.getElementById("refresh-btn").addEventListener("click", () => {
-  fetchLeaderboard(currentPeriod);
-});
+el("btn-current").addEventListener("click", () => loadLeaderboard("current"));
+el("btn-previous").addEventListener("click", () => loadLeaderboard("previous"));
+el("refresh-btn").addEventListener("click", () => loadLeaderboard(currentPeriod));
 
-document.getElementById("btn-current").addEventListener("click", () => {
-  fetchLeaderboard("current");
-});
+loadLeaderboard("current");
 
-document.getElementById("btn-previous").addEventListener("click", () => {
-  fetchLeaderboard("previous");
-});
 
-// Initial load
-fetchLeaderboard("current");
 
 
