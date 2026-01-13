@@ -7,26 +7,34 @@
   <link rel="stylesheet" href="./styles.css"/>
   <link rel="icon" href="data:," />
 </head>
-<body>
+<body> <div class="yeet">
   <div class="leaderboard-wrapper">
+    <div class="lb-switch">
+  
+</div>
+
+<div class="lb-switch" style="margin-top:10px;">
+  <button class="switch-btn active kat" id="btn-rostake">Rostake</button>
+  <button class="switch-btn kat" id="btn-roulobets">Roulobets</button>
+</div>
+
     <header class="lb-header">
-      <div class="lb-title-group">
-        <div class="lb-title">
-          Rostake 150$ Wager Leaderboard on code Bubbi69
-          <span class="badge" id="period-badge">Current</span>
-        </div>
+    <div class="lb-title">
+  <span id="lb-title-text">Rostake Wager Leaderboard</span>
+  <span class="badge" id="period-badge">Current</span>
+</div>
 
-        <div class="lb-subtitle">
-          Top 10 • Prizes: 1st 100 • 2nd 30 • 3rd 20
-        </div>
+<div class="lb-subtitle" id="lb-subtitle">
+  Top 10 • Prizes: 1st 100 • 2nd 50 • 3rd 30
+</div>
 
-        <div class="lb-switch">
-          <button class="switch-btn active" id="btn-current">This period</button>
-          <button class="switch-btn" id="btn-previous">Last period</button>
-        </div>
+
+       
       </div>
-
-      <div class="lb-meta">
+      <div class="this">
+<button class="switch-btn active last" id="btn-current">This period</button>
+  <button class="switch-btn last" id="btn-previous">Last period</button>
+   </div>   <div class="lb-meta">
         <span id="date-range-text">Loading date range...</span>
         <span id="countdown-text" class="countdown-text">—</span>
       </div>
@@ -49,7 +57,7 @@
       <button class="lb-refresh" id="refresh-btn" type="button">Refresh</button>
     </footer>
   </div>
-
+</div>
   <script src="./leaderboard.js"></script>
 </body>
 </html>

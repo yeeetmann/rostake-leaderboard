@@ -1,7 +1,19 @@
-// Change payouts here
-const PRIZES = { 1: 100, 2: 30, 3: 20 };
+// Per-site config
+const SITE_CONFIG = {
+  rostake: {
+    title: "Rostake Wager Leaderboard Bubbi69",
+    subtitle: "Top 10 • Prizes: 1st 100 • 2nd 30 • 3rd 20",
+    prizes: { 1: 100, 2: 30, 3: 20 }
+  },
+  roulobets: {
+    title: "Roulobets $100 Leaderboard Bubbi69",
+    subtitle: "Top 10 • Prizes: 1st 50 • 2nd 30 • 3rd 10 • 4th 10",
+    prizes: { 1: 50, 2: 30, 3: 10, 4: 10 }
+  }
+};
 
 let currentPeriod = "current";
+let currentSite = "rostake";
 let countdownInterval = null;
 
 const el = (id) => document.getElementById(id);
@@ -19,16 +31,6 @@ function formatAmount(value) {
   return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function prizeFor(rank) {
-  return PRIZES[rank] || 0;
-}
-
-function setActiveButtons(period) {
-  el("btn-current").classList.toggle("active", period === "current");
-  el("btn-previous").classList.toggle("active", period === "previous");
-  el("period-badge").textContent = period === "current" ? "Current" : "Last";
-}
-
 function startCountdown(targetMs) {
   if (countdownInterval) clearInterval(countdownInterval);
 
@@ -38,22 +40,39 @@ function startCountdown(targetMs) {
       el("countdown-text").textContent = "Resetting leaderboard…";
       clearInterval(countdownInterval);
       countdownInterval = null;
-      loadLeaderboard("current"); // auto-start next cycle
+      loadLeaderboard("current", currentSite);
       return;
     }
 
-    const totalSeconds = Math.floor(diff / 1000);
-    const days = Math.floor(totalSeconds / 86400);
-    const hours = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
+    const s = Math.floor(diff / 1000);
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const ss = s % 60;
 
     el("countdown-text").textContent =
-      `Time left: ${days}d ${String(hours).padStart(2,"0")}:${String(minutes).padStart(2,"0")}:${String(seconds).padStart(2,"0")}`;
+      `Time left: ${d}d ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
   };
 
   tick();
   countdownInterval = setInterval(tick, 1000);
+}
+
+function setActive(btnOn, btnOff) {
+  el(btnOn).classList.add("active");
+  el(btnOff).classList.remove("active");
+}
+
+function updateHeaderForSite(siteKey) {
+  const cfg = SITE_CONFIG[siteKey] || SITE_CONFIG.rostake;
+  el("lb-title-text").textContent = cfg.title;
+  el("lb-subtitle").textContent = cfg.subtitle;
+  document.title = cfg.title;
+}
+
+function prizeFor(rank) {
+  const cfg = SITE_CONFIG[currentSite] || SITE_CONFIG.rostake;
+  return cfg.prizes[rank] || 0;
 }
 
 function renderRows(data) {
@@ -63,9 +82,7 @@ function renderRows(data) {
   data.forEach((entry, idx) => {
     const rank = idx + 1;
     const prize = prizeFor(rank);
-
-    const safeUsername = entry.isAnon ? "Anonymous" : (entry.username || "Unknown");
-    const avatarSrc = entry.avatar || "";
+    const username = entry.isAnon ? "Anonymous" : (entry.username || "Unknown");
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -74,32 +91,41 @@ function renderRows(data) {
       </td>
       <td>
         <div class="avatar-name">
-          <div class="avatar">
-            ${avatarSrc ? `<img src="${avatarSrc}" alt="${safeUsername}" />` : ""}
-          </div>
+          <div class="avatar"></div>
           <div>
-            <div class="username">${safeUsername}</div>
+            <div class="username">${username}</div>
             ${entry.isAnon ? `<div class="anon-tag">Anon</div>` : ""}
           </div>
         </div>
       </td>
-      <td class="amount">${formatAmount(entry.totalAmount ?? entry.amount ?? entry.total ?? entry.wagered)}</td>
-      <td>
-        ${prize ? `<span class="prize-badge">🏆 ${prize}</span>` : "—"}
-      </td>
+      <td class="amount">${formatAmount(entry.wagered)}</td>
+      <td>${prize ? `<span class="prize-badge">🏆 ${prize}</span>` : "—"}</td>
     `;
     tbody.appendChild(tr);
   });
 }
 
-async function loadLeaderboard(period) {
+async function loadLeaderboard(period, site) {
   currentPeriod = period;
-  setActiveButtons(period);
+  currentSite = site;
+
+  // Buttons
+  if (period === "current") setActive("btn-current", "btn-previous");
+  else setActive("btn-previous", "btn-current");
+
+  if (site === "rostake") setActive("btn-rostake", "btn-roulobets");
+  else setActive("btn-roulobets", "btn-rostake");
+
+  // Title/subtitle
+  updateHeaderForSite(site);
+
+  // Badge
+  el("period-badge").textContent = period === "current" ? "Current" : "Last";
 
   el("status").textContent = "Loading…";
 
   try {
-    const res = await fetch(`/api/leaderboard?period=${period}`);
+    const res = await fetch(`/api/leaderboard?period=${period}&site=${site}`);
     const json = await res.json();
 
     if (!json.success) {
@@ -110,9 +136,8 @@ async function loadLeaderboard(period) {
 
     el("date-range-text").textContent = formatDateRangeText(json.meta.after, json.meta.before);
 
-    if (period === "current" && json.meta.nextResetAt) {
-      startCountdown(json.meta.nextResetAt);
-    } else {
+    if (period === "current" && json.meta.nextResetAt) startCountdown(json.meta.nextResetAt);
+    else {
       if (countdownInterval) clearInterval(countdownInterval);
       el("countdown-text").textContent = "Ended.";
     }
@@ -125,11 +150,17 @@ async function loadLeaderboard(period) {
   }
 }
 
-el("btn-current").addEventListener("click", () => loadLeaderboard("current"));
-el("btn-previous").addEventListener("click", () => loadLeaderboard("previous"));
-el("refresh-btn").addEventListener("click", () => loadLeaderboard(currentPeriod));
+// Wire buttons
+el("btn-current").addEventListener("click", () => loadLeaderboard("current", currentSite));
+el("btn-previous").addEventListener("click", () => loadLeaderboard("previous", currentSite));
+el("refresh-btn").addEventListener("click", () => loadLeaderboard(currentPeriod, currentSite));
 
-loadLeaderboard("current");
+el("btn-rostake").addEventListener("click", () => loadLeaderboard(currentPeriod, "rostake"));
+el("btn-roulobets").addEventListener("click", () => loadLeaderboard(currentPeriod, "roulobets"));
+
+// Initial load
+updateHeaderForSite("rostake");
+loadLeaderboard("current", "rostake");
 
 
 

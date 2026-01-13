@@ -61,7 +61,10 @@ body {
   border-color: rgba(59,130,246,.9);
   box-shadow: 0 0 12px rgba(37,99,235,.45);
 }
+.kat {
+font-size: 20px;
 
+}
 .lb-table {
   width: 100%;
   border-collapse: collapse;
@@ -80,8 +83,18 @@ body {
 }
 .lb-table tbody tr { border-bottom: 1px solid rgba(31,41,55,.6); }
 
-.col-rank { width: 48px; }
+.col-rank { width: 48px; } .this{
+  display: flex
+  ;
+  justify-content: center;
+  margin-top: 7px;
+  
+}
 
+.last {
+  margin-top: 3px;
+  justify-content: center;
+}
 .rank-pill {
   display: inline-flex;
   width: 26px;
