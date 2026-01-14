@@ -131,13 +131,11 @@ async function fetchRoulobets(afterMs, beforeMs) {
   if (!ROULO_API_KEY) throw new Error("Missing ROULO_API_KEY");
 
   const start_at = ymdUTC(afterMs);
-  // inclusive end day (beforeMs is next period start)
   const end_at = ymdUTC(beforeMs - 1);
 
   const cacheKey = `${start_at}|${end_at}`;
   const cached = roulCache.get(cacheKey);
 
-  // ✅ Serve cache if still fresh
   if (cached && Date.now() - cached.ts < ROULO_CACHE_TTL_MS) {
     return {
       rows: cached.data,
@@ -159,26 +157,24 @@ async function fetchRoulobets(afterMs, beforeMs) {
 
     const raw = r.data;
 
-    // Flexible parsing (until you confirm exact shape)
-    const list =
-      (Array.isArray(raw) ? raw : null) ||
-      (Array.isArray(raw?.data) ? raw.data : null) ||
-      (Array.isArray(raw?.users) ? raw.users : null) ||
-      (Array.isArray(raw?.affiliates) ? raw.affiliates : null) ||
-      (Array.isArray(raw?.data?.users) ? raw.data.users : null) ||
-      (Array.isArray(raw?.data?.affiliates) ? raw.data.affiliates : null) ||
-      [];
+    if (DEBUG) {
+      console.log("ROULO query:", { start_at, end_at });
+      console.log("ROULO raw keys:", raw && typeof raw === "object" ? Object.keys(raw) : typeof raw);
+      console.log("ROULO raw sample:", JSON.stringify(raw).slice(0, 2500));
+    }
+
+    // ✅ Confirmed by your logs:
+    // { affiliates: [ { username, id, wagered_amount:"19.5000", rank:"..." }, ... ] }
+    const list = Array.isArray(raw?.affiliates) ? raw.affiliates : [];
 
     const normalized = list.map((u) => ({
-      username: u.username || u.name || u.user || "Unknown",
-      wagered: Number(
-        u.wagered ?? u.wager ?? u.totalWagered ?? u.total_wagered ?? u.amount ?? u.total ?? 0
-      ),
-      avatar: u.avatar || null,
-      isAnon: Boolean(u.isAnon || u.is_anon || false),
+      username: u.username || "Unknown",
+      wagered: Number(u.wagered_amount || 0),
+      avatar: null,
+      isAnon: false,
+      rank: u.rank || null
     }));
 
-    // ✅ Save cache
     roulCache.set(cacheKey, { ts: Date.now(), data: normalized });
 
     return {
@@ -189,7 +185,6 @@ async function fetchRoulobets(afterMs, beforeMs) {
   } catch (err) {
     const details = err?.response?.data || err?.message || err;
 
-    // ✅ If rate-limited but we have older cache, serve it
     if (cached && cached.data) {
       return {
         rows: cached.data,
@@ -198,10 +193,11 @@ async function fetchRoulobets(afterMs, beforeMs) {
       };
     }
 
-    // No cache to fall back on
     throw details;
   }
 }
+
+
 
 // --------------------
 // API route
